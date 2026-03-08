@@ -102,6 +102,17 @@ func (c *Client) GetVaultEnvironments(ctx context.Context, repoFullName string) 
 	return wrapper.Data.Environments, nil
 }
 
+// CreateEnvironment creates a new named environment in a vault
+func (c *Client) CreateEnvironment(ctx context.Context, repoFullName, envName string) error {
+	owner, repo := splitRepo(repoFullName)
+	if owner == "" || repo == "" {
+		return fmt.Errorf("invalid repository format: %s", repoFullName)
+	}
+	path := fmt.Sprintf("/v1/vaults/%s/%s/environments", owner, repo)
+	body := map[string]string{"name": envName}
+	return c.do(ctx, "POST", path, body, nil)
+}
+
 // splitRepo splits "owner/repo" into owner and repo
 func splitRepo(repoFullName string) (string, string) {
 	for i, c := range repoFullName {

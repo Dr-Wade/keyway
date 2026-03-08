@@ -22,15 +22,20 @@ func Discover() []Candidate {
 
 	// Template files to exclude (not real secrets)
 	excludeFiles := map[string]bool{
-		".env.example":  true, // Template files
-		".env.sample":   true,
-		".env.template": true,
+		".env.example":    true,
+		".env.sample":     true,
+		".env.template":   true,
+		".secret.example": true,
+		".secret.sample":  true,
 	}
 
 	var candidates []Candidate
 	for _, entry := range entries {
 		name := entry.Name()
-		if strings.HasPrefix(name, ".env") && !excludeFiles[name] && !entry.IsDir() {
+		if entry.IsDir() || excludeFiles[name] {
+			continue
+		}
+		if strings.HasPrefix(name, ".env") || strings.HasPrefix(name, ".secret") {
 			candidates = append(candidates, Candidate{
 				File: name,
 				Env:  DeriveEnvFromFile(name),
@@ -73,13 +78,19 @@ func NormalizeEnvName(name string) string {
 //   - ".env.local" -> "development"
 //   - ".env.production" -> "production"
 //   - ".env.staging" -> "staging"
+//   - ".secret" -> "development"
+//   - ".secret.production" -> "production"
 func DeriveEnvFromFile(file string) string {
 	base := filepath.Base(file)
-	if base == ".env" {
+	if base == ".env" || base == ".secret" {
 		return "development"
 	}
 	if strings.HasPrefix(base, ".env.") {
 		suffix := strings.TrimPrefix(base, ".env.")
+		return NormalizeEnvName(suffix)
+	}
+	if strings.HasPrefix(base, ".secret.") {
+		suffix := strings.TrimPrefix(base, ".secret.")
 		return NormalizeEnvName(suffix)
 	}
 	return "development"

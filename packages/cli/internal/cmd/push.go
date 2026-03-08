@@ -209,13 +209,21 @@ func runPushWithDeps(opts PushOptions, deps *Dependencies) error {
 
 	deps.UI.Step(fmt.Sprintf("Environment: %s", deps.UI.Value(envName)))
 
-	// Fetch current vault state to show preview
+	// Fetch current vault state; auto-create environment if missing
 	var vaultSecrets map[string]string
+	var envIsNew bool
 	err = deps.UI.Spin("Fetching current vault state...", func() error {
 		resp, err := client.PullSecrets(ctx, repo, envName)
 		if err != nil {
-			// Vault might not exist yet, that's ok
 			if apiErr, ok := err.(*api.APIError); ok && apiErr.StatusCode == 404 {
+				// Environment doesn't exist yet — create it automatically
+				if createErr := client.CreateEnvironment(ctx, repo, envName); createErr != nil {
+					// Ignore 409 (already exists race condition)
+					if apiCreateErr, ok := createErr.(*api.APIError); !ok || apiCreateErr.StatusCode != 409 {
+						return createErr
+					}
+				}
+				envIsNew = true
 				vaultSecrets = make(map[string]string)
 				return nil
 			}
@@ -238,6 +246,12 @@ func runPushWithDeps(opts PushOptions, deps *Dependencies) error {
 				resp, err := client.PullSecrets(ctx, repo, envName)
 				if err != nil {
 					if apiErr, ok := err.(*api.APIError); ok && apiErr.StatusCode == 404 {
+						if createErr := client.CreateEnvironment(ctx, repo, envName); createErr != nil {
+							if apiCreateErr, ok := createErr.(*api.APIError); !ok || apiCreateErr.StatusCode != 409 {
+								return createErr
+							}
+						}
+						envIsNew = true
 						vaultSecrets = make(map[string]string)
 						return nil
 					}
@@ -255,6 +269,10 @@ func runPushWithDeps(opts PushOptions, deps *Dependencies) error {
 			}
 			return err
 		}
+	}
+
+	if envIsNew {
+		deps.UI.Success(fmt.Sprintf("Created environment: %s", envName))
 	}
 
 	// Calculate and show diff

@@ -199,6 +199,9 @@ func (m *MockAPIClient) GetVaultDetails(ctx context.Context, repoFullName string
 func (m *MockAPIClient) GetVaultEnvironments(ctx context.Context, repoFullName string) ([]string, error) {
 	return m.VaultEnvs, m.VaultEnvsError
 }
+func (m *MockAPIClient) CreateEnvironment(ctx context.Context, repoFullName, envName string) error {
+	return nil
+}
 func (m *MockAPIClient) PushSecrets(ctx context.Context, repo, env string, secrets map[string]string) (*api.PushSecretsResponse, error) {
 	m.PushedSecrets = secrets
 	return m.PushResponse, m.PushError

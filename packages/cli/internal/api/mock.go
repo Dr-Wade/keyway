@@ -18,7 +18,8 @@ type MockClient struct {
 	InitVaultFn            func(ctx context.Context, repoFullName string) (*InitVaultResponse, error)
 	CheckVaultExistsFn     func(ctx context.Context, repoFullName string) (bool, error)
 	GetVaultDetailsFn      func(ctx context.Context, repoFullName string) (*VaultDetails, error)
-	GetVaultEnvironmentsFn func(ctx context.Context, repoFullName string) ([]string, error)
+	GetVaultEnvironmentsFn  func(ctx context.Context, repoFullName string) ([]string, error)
+	CreateEnvironmentFn     func(ctx context.Context, repoFullName, envName string) error
 
 	// Secrets mocks
 	PushSecretsFn func(ctx context.Context, repo, env string, secrets map[string]string) (*PushSecretsResponse, error)
@@ -153,6 +154,14 @@ func (m *MockClient) GetVaultEnvironments(ctx context.Context, repoFullName stri
 		return m.GetVaultEnvironmentsFn(ctx, repoFullName)
 	}
 	return []string{"production", "staging", "development"}, nil
+}
+
+func (m *MockClient) CreateEnvironment(ctx context.Context, repoFullName, envName string) error {
+	m.track("CreateEnvironment")
+	if m.CreateEnvironmentFn != nil {
+		return m.CreateEnvironmentFn(ctx, repoFullName, envName)
+	}
+	return nil
 }
 
 // Secrets methods

@@ -290,4 +290,5 @@ func init() {
 	rootCmd.AddCommand(diffCmd)
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(envCmd)
 }

@@ -17,6 +17,7 @@ type APIClient interface {
 	CheckVaultExists(ctx context.Context, repoFullName string) (bool, error)
 	GetVaultDetails(ctx context.Context, repoFullName string) (*VaultDetails, error)
 	GetVaultEnvironments(ctx context.Context, repoFullName string) ([]string, error)
+	CreateEnvironment(ctx context.Context, repoFullName, envName string) error
 
 	// Org methods
 	StartOrganizationTrial(ctx context.Context, orgLogin string) (*StartTrialResponse, error)
