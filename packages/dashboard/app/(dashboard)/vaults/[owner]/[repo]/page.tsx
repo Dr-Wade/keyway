@@ -396,7 +396,7 @@ export default function VaultDetailPage() {
     const result: { name: string; missingIn: string[] }[] = []
     Array.from(secretsByName.entries()).forEach(([name, presentEnvs]) => {
       const missingIn: string[] = []
-      for (const [, groupEnvs] of envsByPrefix) {
+      for (const [, groupEnvs] of Array.from(envsByPrefix)) {
         // Only evaluate groups with more than one environment — a single-env
         // group can never have a "missing in sibling" situation
         if (groupEnvs.length <= 1) continue
