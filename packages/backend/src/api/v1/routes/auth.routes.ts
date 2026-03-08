@@ -45,6 +45,15 @@ function buildCallbackUrl(request: {
   return `${protocol}://${host}/v1/auth/callback`;
 }
 
+// Helper to enforce ALLOWED_USERS restriction for self-hosting
+// Returns true if the user is allowed to sign in, false otherwise.
+// When config.auth.allowedUsers is empty, all users are allowed.
+function isUserAllowed(username: string): boolean {
+  const allowedUsers = config.auth.allowedUsers;
+  if (allowedUsers.length === 0) return true;
+  return allowedUsers.includes(username.toLowerCase());
+}
+
 // Helper to create or update user from VCS data
 async function upsertUser(
   vcsUser: {
@@ -199,6 +208,14 @@ export async function authRoutes(fastify: FastifyInstance) {
         try {
           const accessToken = await exchangeCodeForToken(query.code);
           const githubUser = await getUserFromToken(accessToken);
+
+          if (!isUserAllowed(githubUser.username)) {
+            fastify.log.warn({ username: githubUser.username }, "Sign-in blocked by ALLOWED_USERS");
+            return reply
+              .type("text/html")
+              .send(renderErrorPage("Access Denied", "Your account is not permitted to access this instance."));
+          }
+
           const { user, isNewUser } = await upsertUser(githubUser, accessToken);
 
           // Fetch installation details from GitHub API and store in DB
@@ -331,6 +348,14 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
       const accessToken = await exchangeCodeForToken(query.code);
       const githubUser = await getUserFromToken(accessToken);
+
+      if (!isUserAllowed(githubUser.username)) {
+        fastify.log.warn({ username: githubUser.username }, "Sign-in blocked by ALLOWED_USERS");
+        return reply
+          .type("text/html")
+          .send(renderErrorPage("Access Denied", "Your account is not permitted to access this instance."));
+      }
+
       const { user, isNewUser } = await upsertUser(githubUser, accessToken);
 
       if (stateData.type === "web") {

@@ -60,6 +60,8 @@ services:
       # Optional: Analytics
       - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
       - POSTHOG_HOST=${POSTHOG_HOST:-}
+      # Optional: Restrict sign-in to specific GitHub usernames (comma-separated, empty = allow all)
+      - ALLOWED_USERS=${ALLOWED_USERS:-}
     depends_on:
       db:
         condition: service_healthy

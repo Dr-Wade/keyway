@@ -88,6 +88,12 @@ const envSchema = z
     SENTRY_RELEASE: z.string().optional(),
 
     // Self-hosting config
+    ALLOWED_USERS: z
+      .string()
+      .optional()
+      .transform((val) =>
+        val ? val.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : []
+      ),
     DOCS_URL: optionalUrl(),
     ERROR_BASE_URL: optionalUrl(),
     EMAIL_FROM_ADDRESS: z.string().optional(),
@@ -260,6 +266,11 @@ export const config = {
 
   billing: {
     enabled: env.BILLING_ENABLED && !!env.STRIPE_SECRET_KEY,
+  },
+
+  auth: {
+    // Comma-separated list of allowed GitHub usernames/org names (empty = allow all)
+    allowedUsers: env.ALLOWED_USERS,
   },
 
   rateLimit: {
