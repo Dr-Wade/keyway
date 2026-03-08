@@ -5,7 +5,7 @@ import { z } from "zod";
  */
 export const PAGINATION_DEFAULTS = {
   limit: 20,
-  maxLimit: 100,
+  maxLimit: 1000,
   offset: 0,
 } as const;
 
