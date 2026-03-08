@@ -5,7 +5,7 @@
 
 set -e
 
-REPO="keywaysh/keyway"
+REPO="dr-wade/keyway"
 INSTALL_DIR="${KEYWAY_INSTALL_DIR:-/usr/local/bin}"
 BINARY_NAME="keyway"
 
