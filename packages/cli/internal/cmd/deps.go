@@ -10,8 +10,9 @@ import (
 
 // MonorepoInfo contains information about detected monorepo setup
 type MonorepoInfo struct {
-	IsMonorepo bool
-	Tool       string
+	IsMonorepo  bool
+	Tool        string
+	PackagePath string // relative path from git root to cwd, empty if at root
 }
 
 // GitClient abstracts git operations for testing
@@ -21,6 +22,7 @@ type GitClient interface {
 	AddEnvToGitignore() error
 	IsGitRepository() bool
 	DetectMonorepo() MonorepoInfo
+	GetPackagePath() string
 }
 
 // AuthProvider abstracts authentication for testing

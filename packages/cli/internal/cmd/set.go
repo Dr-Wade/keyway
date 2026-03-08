@@ -170,6 +170,12 @@ func runSetRemote(opts SetOptions, deps *Dependencies) error {
 	}
 	deps.UI.Step(fmt.Sprintf("Repository: %s", deps.UI.Value(repo)))
 
+	// Determine monorepo package path for env scoping
+	packagePath := deps.Git.GetPackagePath()
+	if packagePath != "" {
+		deps.UI.Step(fmt.Sprintf("Package: %s", deps.UI.Value(packagePath)))
+	}
+
 	// Ensure logged in
 	token, err := deps.Auth.EnsureLogin()
 	if err != nil {
@@ -200,6 +206,9 @@ func runSetRemote(opts SetOptions, deps *Dependencies) error {
 			envName = "development"
 		}
 	}
+
+	// Qualify env name with package path for monorepo scoping
+	envName = qualifyEnvName(packagePath, envName)
 
 	deps.UI.Step(fmt.Sprintf("Environment: %s", deps.UI.Value(envName)))
 

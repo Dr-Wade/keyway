@@ -35,8 +35,9 @@ func (r *realGitClient) AddEnvToGitignore() error    { return git.AddEnvToGitign
 func (r *realGitClient) IsGitRepository() bool       { return git.IsGitRepository() }
 func (r *realGitClient) DetectMonorepo() MonorepoInfo {
 	info := git.DetectMonorepo()
-	return MonorepoInfo{IsMonorepo: info.IsMonorepo, Tool: info.Tool}
+	return MonorepoInfo{IsMonorepo: info.IsMonorepo, Tool: info.Tool, PackagePath: info.PackagePath}
 }
+func (r *realGitClient) GetPackagePath() string { return git.GetPackagePath() }
 
 // realAuthProvider wraps the auth package
 type realAuthProvider struct{}

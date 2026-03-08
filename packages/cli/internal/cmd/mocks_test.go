@@ -37,6 +37,10 @@ func (m *MockGitClient) DetectMonorepo() MonorepoInfo {
 	return m.Monorepo
 }
 
+func (m *MockGitClient) GetPackagePath() string {
+	return m.Monorepo.PackagePath
+}
+
 // MockAuthProvider is a mock implementation of AuthProvider
 type MockAuthProvider struct {
 	Token string

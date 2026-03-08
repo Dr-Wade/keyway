@@ -151,6 +151,12 @@ func runPushWithDeps(opts PushOptions, deps *Dependencies) error {
 	}
 	deps.UI.Step(fmt.Sprintf("Repository: %s", deps.UI.Value(repo)))
 
+	// Determine monorepo package path for env scoping
+	packagePath := deps.Git.GetPackagePath()
+	if packagePath != "" {
+		deps.UI.Step(fmt.Sprintf("Package: %s", deps.UI.Value(packagePath)))
+	}
+
 	token, err := deps.Auth.EnsureLogin()
 	if err != nil {
 		deps.UI.Error(err.Error())
@@ -197,6 +203,9 @@ func runPushWithDeps(opts PushOptions, deps *Dependencies) error {
 		}
 		envName = selected
 	}
+
+	// Qualify env name with package path for monorepo scoping
+	envName = qualifyEnvName(packagePath, envName)
 
 	deps.UI.Step(fmt.Sprintf("Environment: %s", deps.UI.Value(envName)))
 

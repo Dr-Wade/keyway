@@ -121,8 +121,28 @@ func AddEnvToGitignore() error {
 
 // MonorepoInfo contains information about detected monorepo setup
 type MonorepoInfo struct {
-	IsMonorepo bool
-	Tool       string // "turborepo", "nx", "pnpm", "lerna", "rush", "yarn", "npm"
+	IsMonorepo  bool
+	Tool        string // "turborepo", "nx", "pnpm", "lerna", "rush", "yarn", "npm"
+	PackagePath string // relative path from git root to cwd, empty if at root
+}
+
+// GetPackagePath returns the relative path from the git root to the current
+// working directory. Returns an empty string when at the repository root or
+// when not inside a git repository.
+func GetPackagePath() string {
+	gitRoot, err := GetGitRoot()
+	if err != nil {
+		return ""
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	rel, err := filepath.Rel(gitRoot, cwd)
+	if err != nil || rel == "." {
+		return ""
+	}
+	return filepath.ToSlash(rel)
 }
 
 // DetectMonorepo checks if the repository is a monorepo
@@ -147,7 +167,7 @@ func DetectMonorepo() MonorepoInfo {
 
 	for _, indicator := range monorepoIndicators {
 		if _, err := os.Stat(filepath.Join(gitRoot, indicator.file)); err == nil {
-			return MonorepoInfo{IsMonorepo: true, Tool: indicator.tool}
+			return MonorepoInfo{IsMonorepo: true, Tool: indicator.tool, PackagePath: GetPackagePath()}
 		}
 	}
 
@@ -157,7 +177,7 @@ func DetectMonorepo() MonorepoInfo {
 		contentStr := string(content)
 		// Simple check for "workspaces" field in package.json
 		if strings.Contains(contentStr, `"workspaces"`) {
-			return MonorepoInfo{IsMonorepo: true, Tool: "npm/yarn workspaces"}
+			return MonorepoInfo{IsMonorepo: true, Tool: "npm/yarn workspaces", PackagePath: GetPackagePath()}
 		}
 	}
 

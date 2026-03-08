@@ -83,23 +83,5 @@ services:
     depends_on:
       - backend
 
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      - DOMAIN=${DOMAIN:-keyway.sh}
-    volumes:
-      - ${CADDYFILE:-./Caddyfile.production}:/etc/caddy/Caddyfile:ro
-      - ${CADDY_CERTS:-./certs}:/etc/certs:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - dashboard
-      - backend
-
 volumes:
   postgres_data:
-  caddy_data:
-  caddy_config:

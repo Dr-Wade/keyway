@@ -63,18 +63,21 @@ func runRunWithDeps(opts RunOptions, deps *Dependencies) error {
 		return err
 	}
 
-	// 2. Ensure Login
+	// 2. Determine monorepo package path for env scoping
+	packagePath := deps.Git.GetPackagePath()
+
+	// 3. Ensure Login
 	token, err := deps.Auth.EnsureLogin()
 	if err != nil {
 		deps.UI.Error(err.Error())
 		return err
 	}
 
-	// 3. Setup Client
+	// 4. Setup Client
 	client := deps.APIFactory.NewClient(token)
 	ctx := context.Background()
 
-	// 4. Determine Environment
+	// 5. Determine Environment
 	envName := opts.EnvName
 
 	if !opts.EnvFlagSet && deps.UI.IsInteractive() {
@@ -104,6 +107,9 @@ func runRunWithDeps(opts RunOptions, deps *Dependencies) error {
 		}
 		envName = selected
 	}
+
+	// Qualify env name with package path for monorepo scoping
+	envName = qualifyEnvName(packagePath, envName)
 
 	deps.UI.Step(fmt.Sprintf("Environment: %s", deps.UI.Value(envName)))
 

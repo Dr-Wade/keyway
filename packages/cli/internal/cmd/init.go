@@ -55,17 +55,21 @@ func runInitWithDeps(opts InitOptions, deps *Dependencies) error {
 	}
 	deps.UI.Step(fmt.Sprintf("Repository: %s", deps.UI.Value(repo)))
 
-	// Check for monorepo setup and warn user
+	// Check for monorepo setup and inform user of package-scoped secrets
 	monorepoInfo := deps.Git.DetectMonorepo()
 	if monorepoInfo.IsMonorepo {
 		analytics.Track(analytics.EventMonorepoDetected, map[string]interface{}{
-			"repo": repo,
-			"tool": monorepoInfo.Tool,
+			"repo":        repo,
+			"tool":        monorepoInfo.Tool,
+			"packagePath": monorepoInfo.PackagePath,
 		})
-		deps.UI.Warn(fmt.Sprintf("Monorepo detected (%s)", monorepoInfo.Tool))
-		deps.UI.Message(deps.UI.Dim("Keyway doesn't fully support monorepos yet — secrets are shared across the entire repository."))
-		deps.UI.Message(deps.UI.Dim("If per-package secrets management is important to you, let us know:"))
-		deps.UI.Message(deps.UI.Dim(fmt.Sprintf("  → %s", deps.UI.Link("https://github.com/keywaysh/feedback/issues"))))
+		if monorepoInfo.PackagePath != "" {
+			deps.UI.Step(fmt.Sprintf("Package: %s", deps.UI.Value(monorepoInfo.PackagePath)))
+			deps.UI.Message(deps.UI.Dim(fmt.Sprintf("Secrets will be scoped to this package (e.g. %s)", deps.UI.Value(qualifyEnvName(monorepoInfo.PackagePath, "development")))))
+		} else {
+			deps.UI.Step(fmt.Sprintf("Monorepo: %s", deps.UI.Value(monorepoInfo.Tool)))
+			deps.UI.Message(deps.UI.Dim("Run this command from a package directory to scope secrets per package"))
+		}
 		deps.UI.Message("")
 	}
 
@@ -105,17 +109,6 @@ func runInitWithDeps(opts InitOptions, deps *Dependencies) error {
 
 		// Vault has secrets
 		deps.UI.Success("Already initialized!")
-
-		// Still try to add badge if not present
-		badgeAdded, _ := AddBadgeToReadme(true)
-		if badgeAdded {
-			analytics.Track(analytics.EventReadmeBadge, map[string]interface{}{
-				"repo":        repo,
-				"badge_added": true,
-				"source":      "init-existing",
-			})
-			deps.UI.Success("Added Keyway badge to README")
-		}
 
 		deps.UI.Message(deps.UI.Dim(fmt.Sprintf("Run %s to sync your secrets", deps.UI.Command("keyway push"))))
 		deps.UI.Outro(fmt.Sprintf("Dashboard: %s", deps.UI.Link(config.GetDashboardURL()+"/vaults/"+repo)))
@@ -171,18 +164,6 @@ func runInitWithDeps(opts InitOptions, deps *Dependencies) error {
 			// Already exists (409 Conflict)
 			if apiErr.StatusCode == 409 {
 				deps.UI.Success("Already initialized!")
-
-				// Still try to add badge if not present
-				badgeAdded, _ := AddBadgeToReadme(true)
-				if badgeAdded {
-					analytics.Track(analytics.EventReadmeBadge, map[string]interface{}{
-						"repo":        repo,
-						"badge_added": true,
-						"source":      "init-conflict",
-					})
-					deps.UI.Success("Added Keyway badge to README")
-				}
-
 				deps.UI.Message(deps.UI.Dim(fmt.Sprintf("Run %s to sync your secrets", deps.UI.Command("keyway push"))))
 				deps.UI.Outro(fmt.Sprintf("Dashboard: %s", deps.UI.Link(config.GetDashboardURL()+"/vaults/"+repo)))
 				return nil
@@ -245,17 +226,6 @@ func runInitWithDeps(opts InitOptions, deps *Dependencies) error {
 vaultCreated:
 
 	deps.UI.Success("Vault created!")
-
-	// Add badge to README (silent mode)
-	badgeAdded, _ := AddBadgeToReadme(true)
-	if badgeAdded {
-		analytics.Track(analytics.EventReadmeBadge, map[string]interface{}{
-			"repo":        repo,
-			"badge_added": true,
-			"source":      "init",
-		})
-		deps.UI.Success("Added Keyway badge to README")
-	}
 
 	// Check for env files and offer to push
 	candidates := deps.Env.Discover()
