@@ -16,7 +16,7 @@ class SecretsApiClient extends BaseApiClient {
         requestId: string
         pagination: { total: number; limit: number; offset: number; hasMore: boolean }
       }
-    }>(`/v1/vaults/${owner}/${repo}/secrets?limit=100`)
+    }>(`/v1/vaults/${owner}/${repo}/secrets?limit=1000`)
     return response.data.map(s => ({
       id: s.id,
       name: s.key,
