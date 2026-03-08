@@ -145,9 +145,9 @@ const environmentNameSchema = z
   .string()
   .min(2, "Environment name must be at least 2 characters")
   .max(30, "Environment name must not exceed 30 characters")
-  .regex(/^[a-z][a-z0-9_-]*$/, {
+  .regex(/^[a-z][a-z0-9_\-\/]*$/, {
     message:
-      "Environment name must be lowercase, start with a letter, and contain only letters, numbers, dashes, or underscores",
+      "Environment name must be lowercase, start with a letter, and contain only letters, numbers, dashes, slashes, or underscores",
   });
 
 const CreateEnvironmentSchema = z.object({
