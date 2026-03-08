@@ -378,18 +378,38 @@ export default function VaultDetailPage() {
     return { secretsByEnv: counts, secretsByName: nameMap, existingSecretNames: names }
   }, [secrets, allEnvironments])
 
-  // Find incomplete secrets (not in all environments)
+  // Find incomplete secrets (not in all environments within the same package)
   const incompleteSecrets = useMemo(() => {
-    // Compare against ALL environments (not just active ones)
-    // This allows copying secrets to empty environments
     if (allEnvironments.length <= 1) return []
 
+    // Group environments by package prefix:
+    //   "packages/api/development" -> prefix "packages/api"
+    //   "development"              -> prefix "" (root / unscoped)
+    const envsByPrefix = new Map<string, string[]>()
+    for (const env of allEnvironments) {
+      const lastSlash = env.lastIndexOf('/')
+      const prefix = lastSlash === -1 ? '' : env.slice(0, lastSlash)
+      if (!envsByPrefix.has(prefix)) envsByPrefix.set(prefix, [])
+      envsByPrefix.get(prefix)!.push(env)
+    }
+
     const result: { name: string; missingIn: string[] }[] = []
-    Array.from(secretsByName.entries()).forEach(([name, envs]) => {
-      const missing = allEnvironments.filter(env => !envs.has(env))
-      if (missing.length > 0 && missing.length < allEnvironments.length) {
-        // Only show if partially present (not missing everywhere)
-        result.push({ name, missingIn: missing })
+    Array.from(secretsByName.entries()).forEach(([name, presentEnvs]) => {
+      const missingIn: string[] = []
+      for (const [, groupEnvs] of envsByPrefix) {
+        // Only evaluate groups with more than one environment — a single-env
+        // group can never have a "missing in sibling" situation
+        if (groupEnvs.length <= 1) continue
+        // Check if the secret is present in at least one env of this group
+        const presentInGroup = groupEnvs.some(env => presentEnvs.has(env))
+        if (!presentInGroup) continue
+        // Collect the siblings it's missing from
+        for (const env of groupEnvs) {
+          if (!presentEnvs.has(env)) missingIn.push(env)
+        }
+      }
+      if (missingIn.length > 0) {
+        result.push({ name, missingIn })
       }
     })
     return result.sort((a, b) => b.missingIn.length - a.missingIn.length)
