@@ -15,7 +15,7 @@ export const DEFAULT_ENVIRONMENTS = ["development", "staging", "production"] as 
 // GitHub allows: alphanumeric, hyphens, underscores, and dots in org/repo names
 // Pattern: owner/repo where both parts allow a-z, A-Z, 0-9, -, _, .
 export const REPO_FULL_NAME_PATTERN = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
-export const ENVIRONMENT_NAME_PATTERN = /^[a-zA-Z0-9_./-]+$/;
+export const ENVIRONMENT_NAME_PATTERN = /^[a-zA-Z0-9_.\/-]+$/;
 
 // Reusable Zod schemas for validation
 export const repoFullNameSchema = z.string().regex(REPO_FULL_NAME_PATTERN, {
