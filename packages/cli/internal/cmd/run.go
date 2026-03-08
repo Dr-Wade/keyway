@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/keywaysh/cli/internal/api"
 	"github.com/keywaysh/cli/internal/env"
@@ -87,21 +88,33 @@ func runRunWithDeps(opts RunOptions, deps *Dependencies) error {
 			vaultEnvs = []string{"development", "staging", "production"}
 		}
 
-		// Find default index (development)
-		defaultIdx := 0
-		for i, e := range vaultEnvs {
+		// When inside a monorepo package, show only stage names for this package
+		displayEnvs := vaultEnvs
+		if packagePath != "" {
+			prefix := strings.TrimSuffix(packagePath, "/") + "/"
+			var filtered []string
+			for _, e := range vaultEnvs {
+				if strings.HasPrefix(e, prefix) {
+					filtered = append(filtered, strings.TrimPrefix(e, prefix))
+				}
+			}
+			if len(filtered) == 0 {
+				filtered = []string{"development", "staging", "production"}
+			}
+			displayEnvs = filtered
+		}
+
+		// Put development first
+		for i, e := range displayEnvs {
 			if e == "development" {
-				defaultIdx = i
+				if i > 0 {
+					displayEnvs[0], displayEnvs[i] = displayEnvs[i], displayEnvs[0]
+				}
 				break
 			}
 		}
 
-		// Reorder to put default first
-		if defaultIdx > 0 {
-			vaultEnvs[0], vaultEnvs[defaultIdx] = vaultEnvs[defaultIdx], vaultEnvs[0]
-		}
-
-		selected, err := deps.UI.Select("Environment:", vaultEnvs)
+		selected, err := deps.UI.Select("Environment:", displayEnvs)
 		if err != nil {
 			return err
 		}

@@ -58,6 +58,8 @@ type MockUIProvider struct {
 	ConfirmError    error
 	SelectResult    string
 	SelectError     error
+	InputResult     string
+	InputError      error
 	PasswordResult  string
 	PasswordError   error
 	SpinError       error
@@ -96,6 +98,9 @@ func (m *MockUIProvider) Confirm(message string, defaultValue bool) (bool, error
 func (m *MockUIProvider) Select(message string, options []string) (string, error) {
 	m.SelectCalls = append(m.SelectCalls, message)
 	return m.SelectResult, m.SelectError
+}
+func (m *MockUIProvider) Input(message, placeholder string) (string, error) {
+	return m.InputResult, m.InputError
 }
 func (m *MockUIProvider) Password(prompt string) (string, error) {
 	m.PasswordCalls = append(m.PasswordCalls, prompt)

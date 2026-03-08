@@ -103,7 +103,8 @@ export default function VaultDetailPage() {
   const [viewingSecret, setViewingSecret] = useState<Secret | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedEnvironment, setSelectedEnvironment] = useState<string>('all')
+  const [selectedStage, setSelectedStage] = useState<string>('all')
+  const [selectedPackage, setSelectedPackage] = useState<string>('all')
   const [showAllIncomplete, setShowAllIncomplete] = useState(false)
   const hasFiredView = useRef(false)
   const [isPending, startTransition] = useTransition()
@@ -172,17 +173,24 @@ export default function VaultDetailPage() {
     return () => clearTimeout(timeout)
   }, [searchQuery, owner, repo, secrets])
 
-  const handleEnvironmentFilter = (env: string) => {
-    const newEnv = env === selectedEnvironment ? 'all' : env
+  const handleStageFilter = (stage: string) => {
+    const newStage = stage === selectedStage ? 'all' : stage
     startTransition(() => {
-      setSelectedEnvironment(newEnv)
+      setSelectedStage(newStage)
+      setSelectedPackage('all')
     })
-    if (newEnv !== 'all') {
+    if (newStage !== 'all') {
       trackEvent(AnalyticsEvents.ENVIRONMENT_FILTER, {
         repo: `${owner}/${repo}`,
-        environment: newEnv,
+        environment: newStage,
       })
     }
+  }
+
+  const handlePackageFilter = (pkg: string) => {
+    startTransition(() => {
+      setSelectedPackage(pkg === selectedPackage ? 'all' : pkg)
+    })
   }
 
   const handleCreateSecret = () => {
@@ -351,6 +359,33 @@ export default function VaultDetailPage() {
     return Array.from(new Set([...vault.environments, ...secrets.map((s) => s.environment)]))
   }, [vault, secrets])
 
+  // Whether this vault has any package-scoped environments (contains '/')
+  const hasPackages = useMemo(() => allEnvironments.some(e => e.includes('/')), [allEnvironments])
+
+  // Deduplicated stage names (last segment after the final '/'), preserving order
+  const stages = useMemo(() => {
+    const seen = new Set<string>()
+    const result: string[] = []
+    for (const env of allEnvironments) {
+      const stage = env.includes('/') ? env.slice(env.lastIndexOf('/') + 1) : env
+      if (!seen.has(stage)) { seen.add(stage); result.push(stage) }
+    }
+    return result
+  }, [allEnvironments])
+
+  // For the selected stage, the available package prefixes ('' = root)
+  const packagesForStage = useMemo(() => {
+    if (selectedStage === 'all') return []
+    const pkgs = new Set<string>()
+    for (const env of allEnvironments) {
+      const stage = env.includes('/') ? env.slice(env.lastIndexOf('/') + 1) : env
+      if (stage !== selectedStage) continue
+      const pkg = env.includes('/') ? env.slice(0, env.lastIndexOf('/')) : ''
+      pkgs.add(pkg)
+    }
+    return Array.from(pkgs).sort()
+  }, [allEnvironments, selectedStage])
+
   // Compute all derived data from secrets in a single pass
   const { secretsByEnv, secretsByName, existingSecretNames } = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -490,13 +525,25 @@ export default function VaultDetailPage() {
   const effectivePermission = vault?.permission ?? 'read'
   const canWrite = vault && permissionConfig[effectivePermission].canWrite && !vault.is_read_only
 
-  // Filter secrets based on search and environment
+  // Filter secrets based on search, stage and package
   const filteredSecrets = secrets.filter(secret => {
     const matchesSearch = searchQuery === '' ||
       secret.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesEnvironment = selectedEnvironment === 'all' ||
-      secret.environment === selectedEnvironment
-    return matchesSearch && matchesEnvironment
+    if (!hasPackages) {
+      // Legacy flat filter
+      const matchesEnvironment = selectedStage === 'all' || secret.environment === selectedStage
+      return matchesSearch && matchesEnvironment
+    }
+    if (selectedStage === 'all') return matchesSearch
+    const envStage = secret.environment.includes('/')
+      ? secret.environment.slice(secret.environment.lastIndexOf('/') + 1)
+      : secret.environment
+    if (envStage !== selectedStage) return false
+    if (selectedPackage === 'all') return matchesSearch
+    const envPkg = secret.environment.includes('/')
+      ? secret.environment.slice(0, secret.environment.lastIndexOf('/'))
+      : ''
+    return matchesSearch && envPkg === selectedPackage
   })
 
   return (
@@ -659,15 +706,16 @@ export default function VaultDetailPage() {
               </div>
             )}
 
-            {/* Environments tab filter */}
+            {/* Environment filter */}
             {vault && allEnvironments.length > 0 && (
-              <div className="mb-6">
+              <div className="mb-6 space-y-0">
+                {/* Row 1: stage tabs (or flat env tabs for non-monorepo) */}
                 <div className="flex items-center gap-2 border-b border-border">
                   <button
-                    onClick={() => handleEnvironmentFilter('all')}
+                    onClick={() => handleStageFilter('all')}
                     className={`
                       flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px
-                      ${selectedEnvironment === 'all'
+                      ${selectedStage === 'all'
                         ? 'border-foreground text-foreground'
                         : 'border-transparent text-muted-foreground hover:text-foreground'
                       }
@@ -676,7 +724,7 @@ export default function VaultDetailPage() {
                     All
                     <span className={`
                       text-xs px-1.5 py-0.5 rounded
-                      ${selectedEnvironment === 'all'
+                      ${selectedStage === 'all'
                         ? 'bg-muted text-foreground'
                         : 'bg-muted/50 text-muted-foreground'
                       }
@@ -684,13 +732,13 @@ export default function VaultDetailPage() {
                       {secrets.length}
                     </span>
                   </button>
-                  {allEnvironments.map((env) => {
+                  {(hasPackages ? stages : allEnvironments).map((env) => {
                     const colors = getEnvironmentColor(env)
-                    const isSelected = selectedEnvironment === env
+                    const isSelected = selectedStage === env
                     return (
                       <button
                         key={env}
-                        onClick={() => handleEnvironmentFilter(env)}
+                        onClick={() => handleStageFilter(env)}
                         className={`
                           px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px
                           ${isSelected
@@ -711,6 +759,28 @@ export default function VaultDetailPage() {
                     </Button>
                   )}
                 </div>
+
+                {/* Row 2: package tabs (only when a stage is selected and multiple packages exist) */}
+                {hasPackages && selectedStage !== 'all' && packagesForStage.length > 1 && (
+                  <div className="flex items-center gap-1 pt-1 px-1">
+                    <span className="text-xs text-muted-foreground mr-1">Package:</span>
+                    {[{ key: 'all', label: 'All' }, ...packagesForStage.map(p => ({ key: p, label: p === '' ? 'root' : p }))].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => handlePackageFilter(key)}
+                        className={`
+                          px-2.5 py-1 text-xs font-medium rounded-full transition-colors
+                          ${selectedPackage === key
+                            ? 'bg-muted text-foreground'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                          }
+                        `}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -780,13 +850,14 @@ export default function VaultDetailPage() {
                   <div className="py-8">
                     <EmptyState
                       title="No matches"
-                      message={`No secrets found${searchQuery ? ` matching "${searchQuery}"` : ''}${selectedEnvironment !== 'all' ? ` in ${selectedEnvironment}` : ''}`}
+                      message={`No secrets found${searchQuery ? ` matching "${searchQuery}"` : ''}${selectedStage !== 'all' ? ` in ${selectedStage}${selectedPackage !== 'all' ? ` / ${selectedPackage === '' ? 'root' : selectedPackage}` : ''}` : ''}`}
                       action={
                         <Button
                           variant="outline"
                           onClick={() => {
                             setSearchQuery('')
-                            setSelectedEnvironment('all')
+                            setSelectedStage('all')
+                            setSelectedPackage('all')
                           }}
                         >
                           Clear filters

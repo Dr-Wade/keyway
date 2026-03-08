@@ -119,6 +119,17 @@ func Select(message string, options []string) (string, error) {
 	return result, err
 }
 
+// Input prompts for free-form text input
+func Input(message, placeholder string) (string, error) {
+	var result string
+	err := huh.NewInput().
+		Title(message).
+		Placeholder(placeholder).
+		Value(&result).
+		Run()
+	return result, err
+}
+
 // Password prompts for password input (masked)
 func Password(message string) (string, error) {
 	var result string

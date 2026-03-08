@@ -98,7 +98,7 @@ func runPushWithDeps(opts PushOptions, deps *Dependencies) error {
 			return err
 		}
 		for _, c := range candidates {
-			if strings.HasPrefix(selected, c.File) {
+			if selected == fmt.Sprintf("%s (env: %s)", c.File, c.Env) {
 				file = c.File
 				if envName == "" {
 					envName = c.Env
@@ -174,34 +174,69 @@ func runPushWithDeps(opts PushOptions, deps *Dependencies) error {
 			vaultEnvs = []string{"development", "staging", "production"}
 		}
 
-		// Find current env in list or add it
-		derivedEnv := envName
-		found := false
-		for _, e := range vaultEnvs {
-			if e == derivedEnv {
-				found = true
-				break
+		// When inside a monorepo package, show only the stage names that belong
+		// to this package (strip the prefix). Unscoped stages (e.g. bare
+		// "development" with no package prefix) are omitted from this view.
+		displayEnvs := vaultEnvs
+		if packagePath != "" {
+			prefix := strings.TrimSuffix(packagePath, "/") + "/"
+			var filtered []string
+			for _, e := range vaultEnvs {
+				if strings.HasPrefix(e, prefix) {
+					// Strip prefix to show only the stage name
+					filtered = append(filtered, strings.TrimPrefix(e, prefix))
+				}
 			}
+			// Fall back to default stages if none found yet for this package
+			if len(filtered) == 0 {
+				filtered = []string{"development", "staging", "production"}
+			}
+			displayEnvs = filtered
 		}
-		if !found && derivedEnv != "" {
-			vaultEnvs = append([]string{derivedEnv}, vaultEnvs...)
+
+		// Derive the display name for the pre-selected env (strip package prefix)
+		derivedDisplay := envName
+		if packagePath != "" {
+			prefix := strings.TrimSuffix(packagePath, "/") + "/"
+			derivedDisplay = strings.TrimPrefix(envName, prefix)
 		}
 
 		// Put derived env first
-		for i, e := range vaultEnvs {
-			if e == derivedEnv {
+		found := false
+		for i, e := range displayEnvs {
+			if e == derivedDisplay {
+				found = true
 				if i > 0 {
-					vaultEnvs[0], vaultEnvs[i] = vaultEnvs[i], vaultEnvs[0]
+					displayEnvs[0], displayEnvs[i] = displayEnvs[i], displayEnvs[0]
 				}
 				break
 			}
 		}
+		if !found && derivedDisplay != "" {
+			displayEnvs = append([]string{derivedDisplay}, displayEnvs...)
+		}
 
-		selected, err := deps.UI.Select("Push to environment:", vaultEnvs)
+		const newEnvSentinel = "+ New environment..."
+		displayEnvs = append(displayEnvs, newEnvSentinel)
+
+		selected, err := deps.UI.Select("Push to environment:", displayEnvs)
 		if err != nil {
 			return err
 		}
-		envName = selected
+
+		if selected == newEnvSentinel {
+			typed, err := deps.UI.Input("New environment name:", "e.g. preview")
+			if err != nil {
+				return err
+			}
+			typed = strings.TrimSpace(strings.ToLower(typed))
+			if typed == "" {
+				return fmt.Errorf("environment name cannot be empty")
+			}
+			envName = typed
+		} else {
+			envName = selected
+		}
 	}
 
 	// Qualify env name with package path for monorepo scoping

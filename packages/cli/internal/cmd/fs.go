@@ -21,6 +21,10 @@ func qualifyEnvName(packagePath, envName string) string {
 	if packagePath == "" {
 		return envName
 	}
-	return strings.TrimSuffix(packagePath, "/") + "/" + envName
+	prefix := strings.TrimSuffix(packagePath, "/") + "/"
+	if strings.HasPrefix(envName, prefix) {
+		return envName
+	}
+	return prefix + envName
 }
 
