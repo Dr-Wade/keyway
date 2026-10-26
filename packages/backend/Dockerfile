@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:24.22.1-alpine AS builder
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ WORKDIR /app/packages/backend
 RUN pnpm run build
 
 # Production image
-FROM node:24-alpine
+FROM node:24.22.1-alpine
 
 WORKDIR /app
 
